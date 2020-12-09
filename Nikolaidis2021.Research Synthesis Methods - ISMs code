@@ -1,7 +1,8 @@
 #####  These synthesis models have been developed by Georgios Nikolaidis #############################################
-#####  for the purposes of a simulation experiment that forms part of my PhD Thesis ##################################
+#####  for the purposes of a paper published in  #################################### ##################################
 #####  The models below build on the code developed by Dias et. al for the TSD series ################################
 #####  The code has been reduced to the pairwise meta-analysis case without adjustments for multi-arm trials #########
+#####  All models can easily be adapted to account for Network meta-analysis.  #######################################
 #####  All the models below consider a RANDOM-EFFECTS approach, but can easily be adapted for a Fixed-effect #########
 
 
@@ -60,62 +61,8 @@ Splitting_T2_model <- function(){
 # Need to include d.dir, d.indir, tau.dir, tau.ind, mu
 
 
-#### Lumping only on relative effects ####
-
-# This model defines separate loops for Direct and Indirect evidence
-# But assumes that they have the same random effect mean
-# So it lumps only on the relative effect and allows all other parameters to be source-specific 
 
 
-Lumping_T2_model <- function(){
-  
-  for(i in 1:ns.dir){                       # LOOP THROUGH DIRECT STUDIES
-    
-    delta[i,1] <- 0                         # treatment effect is zero for control arm
-    mu[i] ~ dnorm(0,.0001)                  # vague priors for all trial baselines
-    
-    for (k in 1:na[i]) {                    # LOOP THROUGH ARMS
-      r[i,k] ~ dbin(p[i,k],n[i,k])          # binomial likelihood
-      logit(p[i,k]) <- mu[i] + delta[i,k]   # model for linear predictor
-      
-    }                                       # Arms loop closes
-    
-    delta[i,2] ~ dnorm(d.dir[2],prec.dir)
-    
-  }                                         # DIRECT studies Loop closes   
-  
-  
-  for(i in ns.dir+1:ns.dir+ns.indir){       # LOOP THROUGH Indirect STUDIES
-    
-    delta[i,1] <- 0                         # treatment effect is zero for control arm
-    mu[i] ~ dnorm(0,.0001)                  # vague priors for all trial baselines
-    
-    for (k in 1:na[i]) {                    # LOOP THROUGH ARMS
-      r[i,k] ~ dbin(p[i,k],n[i,k])          # binomial likelihood
-      logit(p[i,k]) <- mu[i] + delta[i,k]   # model for linear predictor
-      
-    }                                       # Arms loop closes  
-    
-    delta[i,2] ~ dnorm(d.dir[2],prec.indir)
-    
-  }                                         # Indirect studies Loop closes  
-  
-  d.dir[1]<-0                               # treatment effect is zero for reference treatment in Direct
-  
-  for (k in 2:nt){  d.dir[k] ~ dnorm(0,.0001) }   # vague priors for treatment effects
-  
-  tau.dir ~ dunif(0.000001, 5)              # vague prior for between-trial SD
-  prec.dir <- pow(tau.dir,-2)               # between-trial precision = (1/between-trial variance)
-  tau.indir ~ dunif(0.000001, 5)            # vague prior for between-trial SD
-  prec.indir <- pow(tau.indir,-2)           # between-trial precision = (1/between-trial variance)
-  
-} 
-
-## Data ##
-# Need to include ns.dir, ns.ind, nt, na, r, n
-
-## Starting values ##
-# Need to include d.dir, tau.dir, tau.ind, mu
 
 #### Lumping under a common Random-effect  ####
 
@@ -156,135 +103,8 @@ RE_T2_model <- function(){
 # Need to include d, tau, mu
 
 
-#### Lumping on the between-studies heterogeneity ONLY  ####
-
-# This model lumps the two sources of evidence on the between-sources heterogeneity ONLY.
-# The heterogeneity is simultaneously estimates in both sources
 
 
-LUMP_HET_T2_model <- function(){
-  
-  for(i in 1:ns.dir){                       # LOOP THROUGH Direct STUDIES
-    
-    delta[i,1] <- 0                         # treatment effect is zero for control arm
-    mu[i] ~ dnorm(0,.0001)                  # vague priors for all trial baselines
-    
-    for (k in 1:na[i]) {                    # LOOP THROUGH ARMS
-      r[i,k] ~ dbin(p[i,k],n[i,k])          # binomial likelihood
-      logit(p[i,k]) <- mu[i] + delta[i,k]   # model for linear predictor
-      
-    }                                       # Arms loop closes
-    
-    delta[i,2] ~ dnorm(d.dir[2],prec.dir)
-    
-  }                                         # Direct studies Loop closes   
-  
-  d.dir[1]<-0                               # treatment effect is zero for reference treatment in Direct
-  
-  
-  for (k in 2:nt){  d.dir[k] ~ dnorm(0,.0001) } # vague priors for treatment effects
-  tau.dir ~ dunif(0.000001, 5)                  # vague prior for between-trial SD
-  prec.dir <- pow(tau,-2)                   # between-trial precision = (1/between-trial variance)
-  
-  
-  for(i in ns.dir+1:ns.dir+ns.indir){           # LOOP THROUGH Indirect STUDIES
-    
-    delta[i,1] <- 0                             # treatment effect is zero for control arm
-    mu[i] ~ dnorm(0,.0001)                      # vague priors for all trial baselines
-    
-    for (k in 1:na[i]) {                        # LOOP THROUGH ARMS
-      r[i,k] ~ dbin(p[i,k],n[i,k])              # binomial likelihood
-      logit(p[i,k]) <- mu[i] + delta[i,k]       # model for linear predictor
-      
-    }                                           # Arms loop closes  
-    
-    delta[i,2] ~ dnorm(d.indir[2],prec.dir)
-    
-  }                                             # Indirect studies Loop closes  
-  
-  d.indir[1]<-0                                 # treatment effect is zero for reference treatment
-  
- 
-  for (k in 2:nt){  d.indir[k] ~ dnorm(0,.0001) }  # vague priors for treatment effects
-  prec.indir <- pow(tau,-2)                  # between-trial precision = (1/between-trial variance)
-  
-  
-} 
-
-## Data ##
-# Need to include ns.dir, ns.ind, nt, na, r, n
-
-## Starting values ##
-# Need to include d.dir, d.ind, tau, mu
-
-
-#### Random-walk ####
-
-# This model assumes that that the relative effect of the direct evidence (i.e. d.dir) 
-# is centered around that of the indirect evidence (i.e. d.indir)
-# The variance is estimates within the model and controls the extent to which the two parameters are forced to be the same
-
-
-RW_T2_model <- function(){
-  
-  for(i in 1:ns.dir){                           # LOOP THROUGH Direct STUDIES
-    
-    delta[i,1] <- 0                             # treatment effect is zero for control arm
-    mu[i] ~ dnorm(0,.0001)                      # vague priors for all trial baselines
-    
-    for (k in 1:na[i]) {                        # LOOP THROUGH ARMS
-      r[i,k] ~ dbin(p[i,k],n[i,k])              # binomial likelihood
-      logit(p[i,k]) <- mu[i] + delta[i,k]       # model for linear predictor
-      
-    }                                           # Arms loop closes
-    
-    delta[i,2] ~ dnorm(d.dir[2],prec.dir)
-    
-  }                                             # Direct studies Loop closes   
-  
-  d.dir[1]<-0                                   # treatment effect is zero for reference treatment in Direct
-  
-  
-
-  for(k in 2:nt){  d.dir[k]~dnorm(d.indir[k], prec.pop) }  # d.dir is centered around d.indir. This substitutes the prior of d.dir 
-  prec.pop<-pow(tau.pop, -2)
-  tau.pop~dunif(0.000001, 5)
-  
-  
-  tau.dir ~ dunif(0.000001, 5)                  # vague prior for between-trial SD
-  prec.dir <- pow(tau.dir,-2)                   # between-trial precision = (1/between-trial variance)
-  
-  
-  for(i in ns.dir+1:ns.dir+ns.indir){           # LOOP THROUGH Indirect STUDIES
-    
-    delta[i,1] <- 0                             # treatment effect is zero for control arm
-    mu[i] ~ dnorm(0,.0001)                      # vague priors for all trial baselines
-    
-    for (k in 1:na[i]) {                        # LOOP THROUGH ARMS
-      r[i,k] ~ dbin(p[i,k],n[i,k])              # binomial likelihood
-      logit(p[i,k]) <- mu[i] + delta[i,k]       # model for linear predictor
-    }                                           # Arms loop closes  
-    
-    delta[i,2] ~ dnorm(d.indir[2],prec.dir)
-    
-  }                                             # Indirect studies Loop closes  
-  
-  
-  d.indir[1]<-0                                 # treatment effect is zero for reference treatment
-   
-  
-  for (k in 2:nt){  d.indir[k] ~ dnorm(0,.0001) } # vague priors for treatment effects
-  tau.indir ~ dunif(0.000001, 5)                #  vague prior for between-trial SD
-  prec.indir <- pow(tau.indir,-2)               # between-trial precision = (1/between-trial variance)
-  
-  
-} 
-
-## Data ##
-# Need to include n.dir, n.ind, nt, na, r, n
-
-## Starting values ##
-# Need to include d.dir, d.ind, tau.dir, tau.indir, tau.pop, mu
 
 
 #### Multi-level model ####
@@ -354,6 +174,12 @@ MLM_T2_model <- function(){
 
 ## Starting values ##
 # Need to include d.dir, d.ind, d, tau.dir, tau.indir, tau.pop, mu
+
+
+
+
+
+
 
 #### Commensurate prior ####
 
@@ -440,78 +266,10 @@ PR_COMMENSURATE_T2_model <- function(){
 
 
 
-#### Constraint (Direct more negative) #####
 
-# This model assumes that the mean d.dir is smaller than the mean d.indir
-# This does imply that the two estimates will not overlap. It only implies that the desired direction is preserved within each MCMC simulation
 
-CONSTRAINT_T2_model <- function(){
-  
-  for(i in 1:ns.dir){                             # LOOP THROUGH Direct STUDIES
-    
-    
-    delta[i,1] <- 0                              # treatment effect is zero for control arm
-    mu[i] ~ dnorm(0,.0001)                       # vague priors for all trial baselines
-    
-    for (k in 1:na[i]) {                         # LOOP THROUGH ARMS
-      r[i,k] ~ dbin(p[i,k],n[i,k])               # binomial likelihood
-      logit(p[i,k]) <- mu[i] + delta[i,k]        # model for linear predictor
-      
-    }                                            # Arms loop closes
-    
-    delta[i,2] ~ dnorm(d.dir[2],prec.dir)
-    
-  }                                             # Direct studies Loop closes   
-  
-  d.dir[1]<-0       # treatment effect is zero for reference treatment in Direct
-  
-  
-  # vague priors for treatment effects
-  for (k in 2:nt){  d.dir[k] ~ dnorm(0,.0001) }
-  tau.dir ~ dunif(0.000001, 5)     # vague prior for between-trial SD
-  prec.dir <- pow(tau.dir,-2)   # between-trial precision = (1/between-trial variance)
-  
-  
-  
-  for(i in ns.dir+1:ns.dir+ns.indir){           # LOOP THROUGH Indirect STUDIES
-    
-    delta[i,1] <- 0                             # treatment effect is zero for control arm
-    mu[i] ~ dnorm(0,.0001)                      # vague priors for all trial baselines
-    
-    for (k in 1:na[i]) {                        # LOOP THROUGH ARMS
-      r[i,k] ~ dbin(p[i,k],n[i,k])              # binomial likelihood
-      logit(p[i,k]) <- mu[i] + delta[i,k]       # model for linear predictor
-      
-    }                                           # Arms loop closes  
-    
-    delta[i,2] ~ dnorm(d.indir[2],prec.indir)
-    
-  }                                             # Indirect studies Loop closes  
-  
-  
-  d.indir[1]<-0       # treatment effect is zero for reference treatment
-  
-  # vague priors for treatment effects
-  for (k in 2:nt){  d.indir[k] ~ dnorm(0,.0001) }
-  tau.indir ~ dunif(0.000001, 5)     # vague prior for between-trial SD
-  prec.indir <- pow(tau.indir,-2)   # between-trial precision = (1/between-trial variance)
-  
-  
-  # We want to impose d.dir to be more negative than d.indir 
-  # i.e. d.dir < d.indir , d.dir - d.indir < 0,  d.indir - d.dir >= 0
-  # i.e. step(d.indir - d.dir) = 1
-  
-  constraint <- step(d.indir[2] - d.dir[2]) # would need to do it for each [k] in an NMA as long as we think the assumpion holds for each
-  b ~ dbern(constraint)
-  b <- 1
-  
-} 
 
-## Data ##
-# Need to include ns.dir, ns.ind, nt, na, r, n
 
-## Starting values ##
-# Need to include d.dir, d.ind, tau.dir, tau.indir, mu
 
 
 #### Power prior with a= 0.5 #####
@@ -586,7 +344,10 @@ PR_POWER_T2_model <- function(){
 # Need to include d.dir, d.ind, tau.dir, tau.indir, mu
 
 
-#### Analyse only indirect data : Intermediate Necessary step ####
+
+
+
+#### Analyse only indirect data : Intermediate Necessary step for two-step models ####
 
 # This step is only necessary for two-step models that analyse initially the indirect evidence
 # and subsequently use them as data in the analysis of the direct evidence
@@ -624,7 +385,7 @@ RE_T2_model <- function(){
 # Need to include d (i.e d.ind), tau (i.e. tau.indir), mu
 
 
-#### Informative-prior using the postrerior mean indirect relative effect ####
+#### Standard informative-prior using the postrerior mean indirect relative effect ####
 
 # This model is the second step, and requires a previous step where the indirect evidence have been analyses alone  
 # It uses an informative priors on d.dir that is based on d.indir and sd.indir
@@ -724,6 +485,9 @@ PR_INF_PREDICTIVE_T2_model <- function(){
 # Need to include d.dir, tau.dir, mu
 
 
+
+
+
 #### Mixture-prior using the postrerior mean indirect relative effect ####
 
 # This model is the second step, and requires a previous step where the indirect evidence have been analyses alone  
@@ -787,6 +551,8 @@ PR_MIXTURE_RTE_T2_model <- function(){
 
 
 
+
+
 #### Mixture-prior using the predictive distrubiton of the indirect relative effect #####
 
 # This model is the second step, and requires a previous step where the indirect evidence have been analyses alone  
@@ -847,53 +613,3 @@ PR_MIXTURE_PREDICTIVE_T2_model <- function(){
 ## Starting values ##
 # Need to include d.dir, tau.dir, mu
 # AND ADDITIONALLY lambda = c(1, 1) and P=c(0.5, 0.5). These are just examples of starting values that can be changed
-
-#### Log-normal prior on the between-studies heterogeneity ####
-
-# This model requires a previous step where the indirect evidence have been analysed alone
-# Importantly, the coda of the tau parameter needs to be saved (e.g. dat <- out.coda[[1]][,"tau"]) when the indirect evidence are initially analysed
-# Then, using library(MASS), we can fit a log-normal distribution to the tau coda values and save its estimated parameters. For example,
-#           library(MASS)
-#           fit_params <- fitdistr(dat,"lognormal")
-#           tau.fit.meanlog <- fit_params$estimate[1]
-#           tau.fit.sdlog <- fit_params$estimate[2]
-# The two parameters tau.fit.meanlog and tau.fit.sdlog will then need to come in to the analysis of the direct evidence as data
-
-LOGNORMAL_PR_HET_T2_model <- function(){
-  
-  for(i in 1:ns.dir){                             # LOOP THROUGH Direct STUDIES
-    
-    delta[i,1] <- 0                               # treatment effect is zero for control arm
-    mu[i] ~ dnorm(0,.0001)                        # vague priors for all trial baselines
-    
-    for (k in 1:na[i]) {                          # LOOP THROUGH ARMS
-      r[i,k] ~ dbin(p[i,k],n[i,k])                # binomial likelihood
-      logit(p[i,k]) <- mu[i] + delta[i,k]         # model for linear predictor
-      
-    }                                             # Arms loop closes
-    
-    delta[i,2] ~ dnorm(d.dir[2], prec.dir)
-    
-  }                                               # Direct studies Loop closes   
-  
-  d.dir[1]<-0        # treatment effect is zero for reference treatment in Direct
-  
-  
-  for (k in 2:nt){  d.dir[k] ~ dnorm(0,.0001) } # vague priors for treatment effects
-  
-  # Informative prior on the heterogeneity from the neonate heterogeneity
-  
-  tau ~ dlnorm(pr.tau.mean, pr.tau.prec) # log-normal prior on tau
-  pr.tau.mean <- tau.fit.meanlog         # 1st parameter of log-normal prior (i.e. mean-log). Comes in as data 
-  pr.tau.prec <- pow(tau.fit.sdlog, -2)  # 2nd parameter of log-normal prior (i.e. sd-log). Comes in as data
-  
-  prec.dir <- pow(tau,-2)   # between-trial precision = (1/between-trial variance)
-  
-} 
-
-## Data ##
-# Need to include ns.dir, ns.ind, nt, na, r, n
-# AND ADDITIONALLY tau.fit.meanlog, tau.fit.sdlog
-
-## Starting values ##
-# Need to include d.dir, tau.dir, mu
